@@ -76,7 +76,35 @@ def train():
   ########################
   # PUT YOUR CODE HERE  #
   #######################
-  raise NotImplementedError
+  
+  # Get cifar10 data
+  cifar10 = cifar10_utils.get_cifar10(FLAGS.data_dir)
+  
+  ## Testing data
+  x_test, y_test = cifar10['test'].images, cifar10['test'].labels
+
+  # Prepare the dimensions of the network input and output
+  _, x_channels, x_height, x_width = x_test.shape
+  # The number of different classes in our y target vector
+  _, n_classes = y_test.shape
+
+  ## Create an MLP instance
+  # The number of inputs in one network is equal to the length of one
+  # sample, which is equal to the length of the flatted image.
+  n_inputs = x_channels*x_height*x_width
+  mlp = MLP(FLAGS.batch_size, dnn_hidden_units, n_classes)
+
+  for step in range(FLAGS.max_steps):
+    # Get the next training batch.
+    x, y = cifar10['train'].next_batch(FLAGS.batch_size)
+    # Reshape the x matrix to be of size `batch_size x n_inputs`.
+    x_reshaped = x.reshape((FLAGS.batch_size, n_inputs))
+    # Perform a forward pass through our network.
+    out = mlp.forward(x_reshaped)
+    # Calculate the cross entropy loss for our prediction.
+    # Back propagate the cross entropy loss through our network.
+    mlp.backward()
+
   ########################
   # END OF YOUR CODE    #
   #######################
