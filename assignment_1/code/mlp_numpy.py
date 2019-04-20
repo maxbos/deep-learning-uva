@@ -36,7 +36,27 @@ class MLP(object):
     ########################
     # PUT YOUR CODE HERE  #
     #######################
-    raise NotImplementedError
+    self.n_inputs = n_inputs
+    self.n_hidden = n_hidden
+    self.n_classes = n_classes
+    # The network is structured as a sequence of modules
+    self.modules = []
+    # Add the input layer and each hidden layer with their activation
+    # modules to the network
+    in_features = self.n_inputs 
+    for i in range(len(self.n_hidden)):
+      self.modules.extend([
+        LinearModule(in_features, self.n_hidden[i]),
+        ReLUModule(),
+      ])
+      in_features = self.n_hidden[i]
+    # Add the last output layer which has as input the neurons of the
+    # last hidden layer and as output the number of classes, over which
+    # softmax is calculated.
+    self.modules.extend([
+      LinearModule(self.n_hidden[-1], self.n_classes),
+      SoftMaxModule(),
+    ])
     ########################
     # END OF YOUR CODE    #
     #######################
@@ -58,7 +78,9 @@ class MLP(object):
     ########################
     # PUT YOUR CODE HERE  #
     #######################
-    raise NotImplementedError
+    out = x
+    for i in range(len(self.modules)):
+      out = self.modules[i].forward(out)
     ########################
     # END OF YOUR CODE    #
     #######################
@@ -79,7 +101,8 @@ class MLP(object):
     ########################
     # PUT YOUR CODE HERE  #
     #######################
-    raise NotImplementedError
+    for i in reversed(range(len(self.modules))):
+      dout = self.modules[i].backward(dout)
     ########################
     # END OF YOUR CODE    #
     #######################
