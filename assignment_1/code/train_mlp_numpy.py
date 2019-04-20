@@ -102,9 +102,9 @@ def train():
     out = mlp.forward(x_reshaped)
     # Calculate the cross entropy loss for our prediction.
     loss = cross_entropy.forward(out, y)
-    # Calculate the gradient of the cross entropy loss
+    # Calculate the gradients of the cross entropy loss
     dx = cross_entropy.backward(out, y)
-    # Back propagate the cross entropy loss through our network,
+    # Back propagate the cross entropy loss gradients through our network,
     # this will result in gradients for the weights and bias of each
     # layer.
     mlp.backward(dx)
