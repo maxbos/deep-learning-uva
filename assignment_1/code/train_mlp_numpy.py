@@ -76,23 +76,22 @@ def train():
   ########################
   # PUT YOUR CODE HERE  #
   #######################
-  
+
   # Get cifar10 data
   cifar10 = cifar10_utils.get_cifar10(FLAGS.data_dir)
-  
   ## Testing data
   x_test, y_test = cifar10['test'].images, cifar10['test'].labels
-
   # Prepare the dimensions of the network input and output
   _, x_channels, x_height, x_width = x_test.shape
   # The number of different classes in our y target vector
   _, n_classes = y_test.shape
-
   ## Create an MLP instance
   # The number of inputs in one network is equal to the length of one
   # sample, which is equal to the length of the flatted image.
-  n_inputs = x_channels*x_height*x_width
+  n_inputs = x_channels * x_height * x_width
   mlp = MLP(FLAGS.batch_size, dnn_hidden_units, n_classes)
+
+  cross_entropy = CrossEntropyModule()
 
   for step in range(FLAGS.max_steps):
     # Get the next training batch.
@@ -102,9 +101,22 @@ def train():
     # Perform a forward pass through our network.
     out = mlp.forward(x_reshaped)
     # Calculate the cross entropy loss for our prediction.
-    # Back propagate the cross entropy loss through our network.
-    mlp.backward()
+    loss = cross_entropy.forward(out, y)
+    # Calculate the gradient of the cross entropy loss
+    dx = cross_entropy.backward(out, y)
+    # Back propagate the cross entropy loss through our network,
+    # this will result in gradients for the weights and bias of each
+    # layer.
+    mlp.backward(dx)
+    # Update the weights (stochastic gradient descent), it is stochastic
+    # since the data random shuffling is performed in the `cifar10.next_batch`
+    # method.
+    # mlp.gradient_descent(FLAGS.learning_rate)
 
+    # Only evaluate the model on the whole test set each `eval_freq` iterations
+    if (step % FLAGS.eval_freq == 0):
+      # TODO: implement evaluation
+      print('something')
   ########################
   # END OF YOUR CODE    #
   #######################
