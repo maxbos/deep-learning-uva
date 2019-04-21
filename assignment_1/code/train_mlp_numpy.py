@@ -12,6 +12,7 @@ import os
 from mlp_numpy import MLP
 from modules import CrossEntropyModule
 import cifar10_utils
+import csv
 
 # Default constants
 DNN_HIDDEN_UNITS_DEFAULT = '100'
@@ -43,13 +44,7 @@ def accuracy(predictions, targets):
   Implement accuracy computation.
   """
 
-  ########################
-  # PUT YOUR CODE HERE  #
-  #######################
-  raise NotImplementedError
-  ########################
-  # END OF YOUR CODE    #
-  #######################
+  accuracy = (np.argmax(predictions, axis=1) == np.argmax(targets, axis=1)).mean()
 
   return accuracy
 
@@ -73,10 +68,6 @@ def train():
   else:
     dnn_hidden_units = []
 
-  ########################
-  # PUT YOUR CODE HERE  #
-  #######################
-
   # Get cifar10 data
   cifar10 = cifar10_utils.get_cifar10(FLAGS.data_dir)
   ## Testing data
@@ -89,9 +80,12 @@ def train():
   # The number of inputs in one network is equal to the length of one
   # sample, which is equal to the length of the flatted image.
   n_inputs = x_channels * x_height * x_width
-  mlp = MLP(FLAGS.batch_size, dnn_hidden_units, n_classes)
+  x_test_reshaped = x_test.reshape((len(x_test), n_inputs))
 
+  mlp = MLP(n_inputs, dnn_hidden_units, n_classes)
   cross_entropy = CrossEntropyModule()
+
+  evaluation_data = []
 
   for step in range(FLAGS.max_steps):
     # Get the next training batch.
@@ -111,15 +105,33 @@ def train():
     # Update the weights (stochastic gradient descent), it is stochastic
     # since the data random shuffling is performed in the `cifar10.next_batch`
     # method.
-    # mlp.gradient_descent(FLAGS.learning_rate)
+    for module in mlp.modules:
+      if hasattr(module, 'params'):
+        module.params['weight'] -= FLAGS.learning_rate * module.grads['weight']
+        module.params['bias'] -= FLAGS.learning_rate * module.grads['bias']
 
     # Only evaluate the model on the whole test set each `eval_freq` iterations
     if (step % FLAGS.eval_freq == 0):
-      # TODO: implement evaluation
-      print('something')
-  ########################
-  # END OF YOUR CODE    #
-  #######################
+      # Calculate train accuracy
+      train_accuracy = accuracy(out, y)
+      print('Train accuracy:', train_accuracy)
+      # Perform a forward propagation using the test set
+      test_out = mlp.forward(x_test_reshaped)
+      test_loss = cross_entropy.forward(test_out, y_test)
+      test_accuracy = accuracy(test_out, y_test)
+      print('Test accuracy:', test_accuracy)
+      evaluation_data.extend([
+        ['train loss', step, loss],
+        ['train accuracy', step, train_accuracy],
+        ['test loss', step, test_loss],
+        ['test accuracy', step, test_accuracy],
+      ])
+  
+  ## Write evaluation data to csv
+  with open('./evaluation_data_mlp_numpy.csv', 'w') as outcsv:
+      writer = csv.writer(outcsv)
+      writer.writerow(['label', 'step', 'value'])
+      writer.writerows(evaluation_data)
 
 def print_flags():
   """
