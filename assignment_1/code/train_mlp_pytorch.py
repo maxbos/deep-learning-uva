@@ -11,6 +11,7 @@ import numpy as np
 import os
 from mlp_pytorch import MLP
 import cifar10_utils
+import torch
 
 # Default constants
 DNN_HIDDEN_UNITS_DEFAULT = '100'
@@ -41,15 +42,7 @@ def accuracy(predictions, targets):
   TODO:
   Implement accuracy computation.
   """
-
-  ########################
-  # PUT YOUR CODE HERE  #
-  #######################
-  raise NotImplementedError
-  ########################
-  # END OF YOUR CODE    #
-  #######################
-
+  accuracy = (np.argmax(predictions, axis=1) == np.argmax(targets, axis=1)).mean()
   return accuracy
 
 def train():
@@ -72,13 +65,42 @@ def train():
   else:
     dnn_hidden_units = []
 
-  ########################
-  # PUT YOUR CODE HERE  #
-  #######################
-  raise NotImplementedError
-  ########################
-  # END OF YOUR CODE    #
-  #######################
+  # Get cifar10 data
+  cifar10 = cifar10_utils.get_cifar10(FLAGS.data_dir)
+  ## Testing data
+  x_test, y_test = cifar10['test'].images, cifar10['test'].labels
+  # Prepare the dimensions of the network input and output
+  _, x_channels, x_height, x_width = x_test.shape
+  # The number of different classes in our y target vector
+  _, n_classes = y_test.shape
+  ## Create an MLP instance
+  # The number of inputs in one network is equal to the length of one
+  # sample, which is equal to the length of the flatted image.
+  n_inputs = x_channels * x_height * x_width
+  x_test_reshaped = x_test.reshape((len(x_test), n_inputs))
+
+  mlp = MLP(n_inputs, dnn_hidden_units, n_classes)
+  cross_entropy = torch.nn.CrossEntropyLoss()
+  optimizer = torch.optim.Adam(mlp.parameters(), lr=FLAGS.learning_rate)
+
+  evaluation_data = []
+
+  for step in range(FLAGS.max_steps):
+    # Get the next training batch.
+    x, y = cifar10['train'].next_batch(FLAGS.batch_size)
+    # Reshape the x matrix to be of size `batch_size x n_inputs`.
+    x_reshaped = x.reshape((FLAGS.batch_size, n_inputs))
+    # Perform a forward pass through our network.
+    out = mlp.forward(torch.from_numpy(x_reshaped).float().cuda())
+    # Call zero_grad before `loss.backward` to not accumulate the gradients from
+    # multiple passes
+    optimizer.zero_grad()
+    # Calculate the cross entropy loss for our prediction.
+    loss = cross_entropy() # TODO: finish this!!!
+    # Perform backward propagation
+    loss.backward()
+    # Update the weights using the Adam optimizer
+    optimizer.step()
 
 def print_flags():
   """

@@ -32,26 +32,22 @@ class MLP(object):
     TODO:
     Implement initialization of the network.
     """
-
-    self.n_inputs = n_inputs
-    self.n_hidden = n_hidden
-    self.n_classes = n_classes
     # The network is structured as a sequence of modules
     self.modules = []
     # Add the input layer and each hidden layer with their activation
     # modules to the network
-    in_features = self.n_inputs 
-    for i in range(len(self.n_hidden)):
+    in_features = n_inputs
+    for i in range(len(n_hidden)):
       self.modules.extend([
-        LinearModule(in_features, self.n_hidden[i]),
+        LinearModule(in_features, n_hidden[i]),
         ReLUModule(),
       ])
-      in_features = self.n_hidden[i]
+      in_features = n_hidden[i]
     # Add the last output layer which has as input the neurons of the
     # last hidden layer and as output the number of classes, over which
     # softmax is calculated.
     self.modules.extend([
-      LinearModule(self.n_hidden[-1], self.n_classes),
+      LinearModule(in_features, n_classes),
       SoftMaxModule(),
     ])
 

@@ -43,9 +43,7 @@ def accuracy(predictions, targets):
   TODO:
   Implement accuracy computation.
   """
-
   accuracy = (np.argmax(predictions, axis=1) == np.argmax(targets, axis=1)).mean()
-
   return accuracy
 
 def train():
