@@ -12,6 +12,8 @@ import os
 from mlp_pytorch import MLP
 import cifar10_utils
 import torch
+import csv
+import time
 
 # Default constants
 DNN_HIDDEN_UNITS_DEFAULT = '100'
@@ -42,7 +44,8 @@ def accuracy(predictions, targets):
   TODO:
   Implement accuracy computation.
   """
-  accuracy = (np.argmax(predictions, axis=1) == np.argmax(targets, axis=1)).mean()
+  # Use the `argmax` implementation by Torch since `predictions` is a torch tensor
+  accuracy = (torch.argmax(predictions, dim=1) == np.argmax(targets, axis=1)).mean()
   return accuracy
 
 def train():
@@ -90,17 +93,39 @@ def train():
     x, y = cifar10['train'].next_batch(FLAGS.batch_size)
     # Reshape the x matrix to be of size `batch_size x n_inputs`.
     x_reshaped = x.reshape((FLAGS.batch_size, n_inputs))
-    # Perform a forward pass through our network.
-    out = mlp.forward(torch.from_numpy(x_reshaped).float().cuda())
     # Call zero_grad before `loss.backward` to not accumulate the gradients from
     # multiple passes
     optimizer.zero_grad()
+    # Perform a forward pass through our network.
+    out = mlp.forward(torch.from_numpy(x_reshaped).float().cuda())
     # Calculate the cross entropy loss for our prediction.
-    loss = cross_entropy() # TODO: finish this!!!
+    loss = cross_entropy(out, torch.from_numpy(y).float().cuda().argmax(dim=1))
     # Perform backward propagation
     loss.backward()
     # Update the weights using the Adam optimizer
     optimizer.step()
+    # Only evaluate the model on the whole test set each `eval_freq` iterations
+    if (step % FLAGS.eval_freq == 0):
+      # Calculate train accuracy
+      train_accuracy = accuracy(out, y)
+      print('Train accuracy:', train_accuracy)
+      # Perform a forward propagation using the test set
+      test_out = mlp.forward(torch.from_numpy(x_test_reshaped).float().cuda())
+      test_loss = cross_entropy.forward(test_out, torch.from_numpy(y_test).float().cuda().argmax(dim=1))
+      test_accuracy = accuracy(test_out, y_test)
+      print('Test accuracy:', test_accuracy)
+      evaluation_data.extend([
+        ['train loss', step, loss],
+        ['train accuracy', step, train_accuracy],
+        ['test loss', step, test_loss],
+        ['test accuracy', step, test_accuracy],
+      ])
+
+  ## Write evaluation data to csv
+  with open(('./evaluation_data_mlp_pytorch-', time.time() ,'.csv'), 'w') as outcsv:
+      writer = csv.writer(outcsv)
+      writer.writerow(['label', 'step', 'value'])
+      writer.writerows(evaluation_data)
 
 def print_flags():
   """
