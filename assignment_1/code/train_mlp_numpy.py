@@ -13,6 +13,7 @@ from mlp_numpy import MLP
 from modules import CrossEntropyModule
 import cifar10_utils
 import csv
+import time
 
 # Default constants
 DNN_HIDDEN_UNITS_DEFAULT = '100'
@@ -125,8 +126,11 @@ def train():
         ['test accuracy', step, test_accuracy],
       ])
   
+  eval_dir = './eval/mlp_numpy/'
+  if not os.path.exists(eval_dir):
+    os.makedirs(eval_dir)
   ## Write evaluation data to csv
-  with open('./evaluation_data_mlp_numpy.csv', 'w') as outcsv:
+  with open(eval_dir+str(time.time())+'.csv', 'w') as outcsv:
       writer = csv.writer(outcsv)
       writer.writerow(['label', 'step', 'value'])
       writer.writerows(evaluation_data)

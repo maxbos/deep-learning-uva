@@ -1,0 +1,9 @@
+label,step,value
+train loss,0,"tensor(19.0178, grad_fn=<NllLossBackward>)"
+train accuracy,0,0.125
+test loss,0,"tensor(121.8932, grad_fn=<NllLossBackward>)"
+test accuracy,0,0.1684
+train loss,100,"tensor(17.5002, grad_fn=<NllLossBackward>)"
+train accuracy,100,0.285
+test loss,100,"tensor(19.1828, grad_fn=<NllLossBackward>)"
+test accuracy,100,0.3193

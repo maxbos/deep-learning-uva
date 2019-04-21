@@ -1,0 +1,9 @@
+label,step,value
+train loss,0,18.960962295532227
+train accuracy,0,0.085
+test loss,0,113.35523986816406
+test accuracy,0,0.171
+train loss,100,19.216461181640625
+train accuracy,100,0.265
+test loss,100,20.498823165893555
+test accuracy,100,0.3257
