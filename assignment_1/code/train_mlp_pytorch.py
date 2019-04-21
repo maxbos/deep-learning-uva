@@ -46,8 +46,6 @@ def accuracy(predictions, targets):
   """
   predictions = predictions.data.numpy()
   accuracy = (np.argmax(predictions, axis=1) == np.argmax(targets, axis=1)).mean()
-  # # Use the `argmax` implementation by Torch since `predictions` is a torch tensor
-  # accuracy = (torch.argmax(predictions, dim=1) == torch.from_numpy(targets).float().argmax(dim=1)).float().mean().item()
   return accuracy
 
 def train():

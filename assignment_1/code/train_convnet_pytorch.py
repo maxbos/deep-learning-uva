@@ -11,6 +11,9 @@ import numpy as np
 import os
 from convnet_pytorch import ConvNet
 import cifar10_utils
+import time
+import torch
+import csv
 
 # Default constants
 LEARNING_RATE_DEFAULT = 1e-4
@@ -41,15 +44,8 @@ def accuracy(predictions, targets):
   TODO:
   Implement accuracy computation.
   """
-
-  ########################
-  # PUT YOUR CODE HERE  #
-  #######################
-  raise NotImplementedError
-  ########################
-  # END OF YOUR CODE    #
-  #######################
-
+  predictions = predictions.data.numpy()
+  accuracy = (np.argmax(predictions, axis=1) == np.argmax(targets, axis=1)).mean()
   return accuracy
 
 def train():
@@ -64,13 +60,64 @@ def train():
   # Set the random seeds for reproducibility
   np.random.seed(42)
 
-  ########################
-  # PUT YOUR CODE HERE  #
-  #######################
-  raise NotImplementedError
-  ########################
-  # END OF YOUR CODE    #
-  #######################
+  DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+  # Get cifar10 data
+  cifar10 = cifar10_utils.get_cifar10(FLAGS.data_dir)
+  ## Testing data
+  x_test, y_test = cifar10['test'].images, cifar10['test'].labels
+  # Prepare the dimensions of the network input and output
+  _, x_channels, x_height, x_width = x_test.shape
+  # The number of different classes in our y target vector
+  _, n_classes = y_test.shape
+  ## Create a ConvNet instance
+  model = ConvNet(x_channels, n_classes)
+  model.to(DEVICE)
+  cross_entropy = torch.nn.CrossEntropyLoss()
+  optimizer = torch.optim.Adam(model.parameters(), lr=FLAGS.learning_rate)
+
+  evaluation_data = []
+
+  for step in range(FLAGS.max_steps):
+    # Get the next training batch.
+    x, y = cifar10['train'].next_batch(FLAGS.batch_size)
+    # Call zero_grad before `loss.backward` to not accumulate the gradients from
+    # multiple passes
+    optimizer.zero_grad()
+    # Perform a forward pass through our network.
+    out = model.forward(torch.from_numpy(x).float().to(DEVICE))
+    # Calculate the cross entropy loss for our prediction.
+    loss = cross_entropy(out, torch.from_numpy(y).float().to(DEVICE).argmax(dim=1))
+    # Perform backward propagation
+    loss.backward()
+    # Update the weights using the Adam optimizer
+    optimizer.step()
+    # Only evaluate the model on the whole test set each `eval_freq` iterations
+    if (step % FLAGS.eval_freq == 0):
+      # Calculate train accuracy
+      train_accuracy = accuracy(out, y)
+      print('Train accuracy:', train_accuracy)
+      # Perform a forward propagation using the test set
+      test_out = model.forward(torch.from_numpy(x_test).float().to(DEVICE))
+      test_loss = cross_entropy.forward(test_out, torch.from_numpy(y_test).float().to(DEVICE).argmax(dim=1))
+      test_accuracy = accuracy(test_out, y_test)
+      print('Test accuracy:', test_accuracy)
+      evaluation_data.extend([
+        ['train loss', step, loss.item()],
+        ['train accuracy', step, train_accuracy],
+        ['test loss', step, test_loss.item()],
+        ['test accuracy', step, test_accuracy],
+      ])
+
+  eval_dir = './eval/cnn_pytorch/'
+  if not os.path.exists(eval_dir):
+    os.makedirs(eval_dir)
+  ## Write evaluation data to csv
+  fname = str(time.time())
+  with open(eval_dir+fname+'.csv', 'w') as outcsv:
+      writer = csv.writer(outcsv)
+      writer.writerow(['label', 'step', 'value'])
+      writer.writerows(evaluation_data)
 
 def print_flags():
   """
