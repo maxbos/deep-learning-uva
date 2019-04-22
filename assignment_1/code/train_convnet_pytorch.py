@@ -18,7 +18,7 @@ import csv
 # Default constants
 LEARNING_RATE_DEFAULT = 1e-4
 BATCH_SIZE_DEFAULT = 32
-MAX_STEPS_DEFAULT = 5000
+MAX_STEPS_DEFAULT = 500
 EVAL_FREQ_DEFAULT = 500
 OPTIMIZER_DEFAULT = 'ADAM'
 
@@ -44,7 +44,7 @@ def accuracy(predictions, targets):
   TODO:
   Implement accuracy computation.
   """
-  predictions = predictions.data.numpy()
+  predictions = predictions.data.cpu().numpy()
   accuracy = (np.argmax(predictions, axis=1) == np.argmax(targets, axis=1)).mean()
   return accuracy
 
@@ -92,6 +92,7 @@ def train():
     loss.backward()
     # Update the weights using the Adam optimizer
     optimizer.step()
+    out.detach()
     # Only evaluate the model on the whole test set each `eval_freq` iterations
     if (step % FLAGS.eval_freq == 0):
       # Calculate train accuracy
@@ -108,6 +109,7 @@ def train():
         ['test loss', step, test_loss.item()],
         ['test accuracy', step, test_accuracy],
       ])
+      test_out.detach()
 
   eval_dir = './eval/cnn_pytorch/'
   if not os.path.exists(eval_dir):
