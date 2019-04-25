@@ -31,19 +31,25 @@ class VanillaRNN(nn.Module):
         self.seq_length = seq_length
         self.input_dim = input_dim
 
-        self.h_init = torch.zeros(num_hidden, batch_size)
-        self.W_hx = nn.Parameter(torch.empty(num_hidden, input_dim).uniform_(0, 1))
-        self.W_hh = nn.Parameter(torch.empty(num_hidden, num_hidden).uniform_(0, 1))
-        self.W_ph = nn.Parameter(torch.empty(num_classes, num_hidden).uniform_(0, 1))
-        self.b_h = nn.Parameter(torch.empty(num_hidden, input_dim).uniform_(0, 1))
-        self.b_p = nn.Parameter(torch.empty(num_classes, input_dim).uniform_(0, 1))
+        self.h_init = torch.zeros(batch_size, num_hidden)
+        self.W_hx = self._parameter(input_dim, num_hidden)
+        self.W_hh = self._parameter(num_hidden, num_hidden)
+        self.W_ph = self._parameter(num_hidden, num_classes)
+        self.b_h = self._parameter(num_hidden)
+        self.b_p = self._parameter(num_classes)
+
+    def _parameter(self, *params):
+        y = params[1] if len(params) > 1 else 1
+        stdv = 1. / np.sqrt(y)
+        return nn.Parameter(torch.empty(*params).uniform_(-stdv, stdv))
 
     def forward(self, x):
         h_prev = self.h_init
         for t in range(self.seq_length):
             # Retrieve a sequence of `input_dim` starting at timestamp `t` for all samples
-            # resulting in a matrix of size (input_dim x batch_size)
-            x_t = torch.transpose(x[:, t:(t+self.input_dim)], 0, 1)
-            h_t = torch.tanh(self.W_hx @ x_t + self.W_hh @ h_prev + self.b_h)
-            p_t = self.W_ph @ h_t + self.b_p
-        return torch.transpose(p_t, 0, 1)
+            # resulting in a matrix of size (batch_size x input_dim)
+            x_t = x[:, t:(t+self.input_dim)]
+            h_t = torch.tanh(x_t @ self.W_hx + h_prev @ self.W_hh + self.b_h)
+            p_t = h_t @ self.W_ph + self.b_p
+            h_prev = h_t
+        return p_t
