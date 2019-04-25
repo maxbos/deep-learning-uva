@@ -73,11 +73,11 @@ def train(config):
         ############################################################################
         torch.nn.utils.clip_grad_norm(model.parameters(), max_norm=config.max_norm)
         ############################################################################
-        print('step it')
+
         # forward + backward + optimize
         outputs = model(batch_inputs)
         loss = criterion(outputs, batch_targets)
-        accuracy = 0.0  # fixme
+        accuracy = (outputs.argmax(dim=1) == batch_targets).float().mean()
         loss.backward()
         optimizer.step()
 
