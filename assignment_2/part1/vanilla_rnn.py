@@ -30,8 +30,9 @@ class VanillaRNN(nn.Module):
         super(VanillaRNN, self).__init__()
         self.seq_length = seq_length
         self.input_dim = input_dim
+        self.device = device
 
-        self.h_init = torch.zeros(batch_size, num_hidden)
+        self.h_init = torch.zeros(batch_size, num_hidden, device=device)
         self.W_hx = self._parameter(input_dim, num_hidden)
         self.W_hh = self._parameter(num_hidden, num_hidden)
         self.W_ph = self._parameter(num_hidden, num_classes)
@@ -41,7 +42,7 @@ class VanillaRNN(nn.Module):
     def _parameter(self, *params):
         y = params[1] if len(params) > 1 else 1
         stdv = 1. / np.sqrt(y)
-        return nn.Parameter(torch.empty(*params).uniform_(-stdv, stdv))
+        return nn.Parameter(torch.empty(*params, device=self.device).uniform_(-stdv, stdv))
 
     def forward(self, x):
         h_prev = self.h_init

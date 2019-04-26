@@ -30,9 +30,10 @@ class LSTM(nn.Module):
         super(LSTM, self).__init__()
         self.seq_length = seq_length
         self.input_dim = input_dim
+        self.device = device
 
-        self.c_init = torch.zeros(batch_size, num_hidden)
-        self.h_init = torch.zeros(batch_size, num_hidden)
+        self.c_init = torch.zeros(batch_size, num_hidden, device=device)
+        self.h_init = torch.zeros(batch_size, num_hidden, device=device)
         self.W_gx = self._parameter(input_dim, num_hidden)
         self.W_gh = self._parameter(num_hidden, num_hidden)
         self.W_ix = self._parameter(input_dim, num_hidden)
@@ -51,7 +52,7 @@ class LSTM(nn.Module):
     def _parameter(self, *params):
         y = params[1] if len(params) > 1 else 1
         stdv = 1. / np.sqrt(y)
-        return nn.Parameter(torch.empty(*params).uniform_(-stdv, stdv))
+        return nn.Parameter(torch.empty(*params, device=self.device).uniform_(-stdv, stdv))
 
     def forward(self, x):
         c_prev = self.c_init
