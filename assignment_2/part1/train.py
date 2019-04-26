@@ -73,7 +73,7 @@ def train(config):
         ############################################################################
         torch.nn.utils.clip_grad_norm(model.parameters(), max_norm=config.max_norm)
         ############################################################################
-
+    
         # forward + backward + optimize
         outputs = model(batch_inputs)
         loss = criterion(outputs, batch_targets)
