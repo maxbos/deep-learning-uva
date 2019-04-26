@@ -94,6 +94,10 @@ def train(config):
                     accuracy, loss
             ))
 
+            # Stop the training on convergence
+            if accuracy == 1.0:
+                break
+
         if step == config.train_steps:
             # If you receive a PyTorch data-loader error, check this bug report:
             # https://github.com/pytorch/pytorch/pull/9655
