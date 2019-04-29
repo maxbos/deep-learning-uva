@@ -36,13 +36,13 @@ from part2.model import TextGenerationModel
 
 ################################################################################
 
-def sample_text(model, generation_length, dataset, device):
+def sample_text(model, generation_length, dataset, device, temperature=.5):
     with torch.no_grad():
         text = []
         x = torch.randint(high=dataset.vocab_size, size=(1, 1), device=device)
         states = None
         for _ in range(generation_length-1):
-            x, states = model.predict(x.view(1,-1), states, 1.)
+            x, states = model.predict(x.view(1,-1), states, temperature)
             text.append(x.item())
     return dataset.convert_to_string(text)
 
@@ -59,7 +59,7 @@ def train(config):
     model = TextGenerationModel(
         config.batch_size, config.seq_length, dataset.vocab_size,
         lstm_num_hidden=config.lstm_num_hidden, lstm_num_layers=config.lstm_num_layers,
-        device=device,
+        device=device, embedding_dim=config.embedding_dim,
     )
     model.to(device)
 
@@ -126,6 +126,7 @@ if __name__ == "__main__":
     parser.add_argument('--lstm_num_hidden', type=int, default=128, help='Number of hidden units in the LSTM')
     parser.add_argument('--lstm_num_layers', type=int, default=2, help='Number of LSTM layers in the model')
     parser.add_argument('--device', type=str, default="cpu", help="Training device 'cpu' or 'cuda:0'")
+    parser.add_argument('--embedding_dim', type=str, default=30, help="Number of dimensions in word embedding")
 
     # Training params
     parser.add_argument('--batch_size', type=int, default=64, help='Number of examples to process in a batch')

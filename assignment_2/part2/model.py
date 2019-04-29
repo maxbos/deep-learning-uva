@@ -24,16 +24,15 @@ import torch.nn as nn
 class TextGenerationModel(nn.Module):
 
     def __init__(self, batch_size, seq_length, vocabulary_size,
-                 lstm_num_hidden=256, lstm_num_layers=2, device='cuda:0'):
+                 lstm_num_hidden=256, lstm_num_layers=2, device='cuda:0',
+                 embedding_dim=30):
 
         super(TextGenerationModel, self).__init__()
-        self.embeddings = nn.Embedding(vocabulary_size, 10)
+        self.embeddings = nn.Embedding(vocabulary_size, embedding_dim)
         self.lstm = nn.LSTM(
-            10, lstm_num_hidden, lstm_num_layers,
+            embedding_dim, lstm_num_hidden, lstm_num_layers,
         )
         self.linear = nn.Linear(lstm_num_hidden, vocabulary_size)
-        # self.hn = torch.randn(lstm_num_layers, batch_size, lstm_num_hidden, device=device)
-        # self.cn = torch.randn(lstm_num_layers, batch_size, lstm_num_hidden, device=device)
 
     def forward(self, x, states=None):
         embeds = self.embeddings(x)
