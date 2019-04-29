@@ -17,6 +17,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import torch
 import torch.nn as nn
 
 
@@ -26,8 +27,23 @@ class TextGenerationModel(nn.Module):
                  lstm_num_hidden=256, lstm_num_layers=2, device='cuda:0'):
 
         super(TextGenerationModel, self).__init__()
-        # Initialization here...
+        self.embeddings = nn.Embedding(vocabulary_size, 10)
+        self.lstm = nn.LSTM(
+            10, lstm_num_hidden, lstm_num_layers,
+        )
+        self.linear = nn.Linear(lstm_num_hidden, vocabulary_size)
+        # self.hn = torch.randn(lstm_num_layers, batch_size, lstm_num_hidden, device=device)
+        # self.cn = torch.randn(lstm_num_layers, batch_size, lstm_num_hidden, device=device)
 
-    def forward(self, x):
-        # Implementation here...
-        pass
+    def forward(self, x, states=None):
+        embeds = self.embeddings(x)
+        output, (hn, cn) = self.lstm(embeds, states)
+        output = self.linear(output)
+        return output, (hn, cn)
+
+    def predict(self, x, states, temperature=1.):
+        """Predict the next character."""
+        output, (hn, cn) = self.forward(x, states)
+        distribution = nn.functional.softmax(output.squeeze()/temperature, dim=0)
+        predicted = torch.multinomial(distribution, 1)
+        return predicted, (hn, cn)

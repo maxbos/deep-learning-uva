@@ -28,55 +28,81 @@ import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader
 
+import sys
+sys.path.append("..")
+
 from part2.dataset import TextDataset
 from part2.model import TextGenerationModel
 
 ################################################################################
+
+def sample_text(model, generation_length, dataset, device):
+    with torch.no_grad():
+        text = []
+        x = torch.randint(high=dataset.vocab_size, size=(1, 1), device=device)
+        states = None
+        for _ in range(generation_length-1):
+            x, states = model.predict(x.view(1,-1), states, 1.)
+            text.append(x.item())
+    return dataset.convert_to_string(text)
 
 def train(config):
 
     # Initialize the device which to run the model on
     device = torch.device(config.device)
 
-    # Initialize the model that we are going to use
-    model = TextGenerationModel( ... )  # fixme
-
     # Initialize the dataset and data loader (note the +1)
-    dataset = TextDataset( ... )  # fixme
+    dataset = TextDataset(config.txt_file, config.seq_length)
     data_loader = DataLoader(dataset, config.batch_size, num_workers=1)
 
+    # Initialize the model that we are going to use
+    model = TextGenerationModel(
+        config.batch_size, config.seq_length, dataset.vocab_size,
+        lstm_num_hidden=config.lstm_num_hidden, lstm_num_layers=config.lstm_num_layers,
+        device=device,
+    )
+    model.to(device)
+
     # Setup the loss and optimizer
-    criterion = None  # fixme
-    optimizer = None  # fixme
+    criterion = torch.nn.CrossEntropyLoss()
+    optimizer = optim.RMSprop(model.parameters(), lr=config.learning_rate)
 
     for step, (batch_inputs, batch_targets) in enumerate(data_loader):
 
         # Only for time measurement of step through network
         t1 = time.time()
+        
+        batch_inputs = torch.stack(batch_inputs).to(device)
+        batch_targets = torch.stack(batch_targets).to(device)
 
-        #######################################################
-        # Add more code here ...
-        #######################################################
+        # zero the parameter gradients
+        optimizer.zero_grad()
+        torch.nn.utils.clip_grad_norm(model.parameters(), max_norm=config.max_norm)
 
-        loss = np.inf   # fixme
-        accuracy = 0.0  # fixme
+        # forward + backward + optimize
+        outputs, _ = model(batch_inputs)
+        # Reshape the input to be of size `seq_length` x `n_classes`
+        loss = criterion(outputs.transpose(2, 1), batch_targets)
+        # Get the index of the charachter with the maximum value for each timestep
+        # and sample, and compare this to the true targets
+        accuracy = (outputs.argmax(dim=-1) == batch_targets).float().mean()
+        loss.backward(retain_graph=True)
+        optimizer.step()
 
         # Just for time measurement
         t2 = time.time()
         examples_per_second = config.batch_size/float(t2-t1)
 
         if step % config.print_every == 0:
-
-            print("[{}] Train Step {:04d}/{:04d}, Batch Size = {}, Examples/Sec = {:.2f}, "
+            print("[{}] Train Step {:.0f}/{:.0f}, Batch Size = {}, Examples/Sec = {:.2f}, "
                   "Accuracy = {:.2f}, Loss = {:.3f}".format(
                     datetime.now().strftime("%Y-%m-%d %H:%M"), step,
                     config.train_steps, config.batch_size, examples_per_second,
-                    accuracy, loss
+                    accuracy.item(), loss.item()
             ))
 
-        if step == config.sample_every:
-            # Generate some sentences by sampling from the model
-            pass
+        if step % config.sample_every == 0:
+            print(sample_text(model, config.seq_length, dataset, device))
 
         if step == config.train_steps:
             # If you receive a PyTorch data-loader error, check this bug report:
@@ -99,6 +125,7 @@ if __name__ == "__main__":
     parser.add_argument('--seq_length', type=int, default=30, help='Length of an input sequence')
     parser.add_argument('--lstm_num_hidden', type=int, default=128, help='Number of hidden units in the LSTM')
     parser.add_argument('--lstm_num_layers', type=int, default=2, help='Number of LSTM layers in the model')
+    parser.add_argument('--device', type=str, default="cpu", help="Training device 'cpu' or 'cuda:0'")
 
     # Training params
     parser.add_argument('--batch_size', type=int, default=64, help='Number of examples to process in a batch')
