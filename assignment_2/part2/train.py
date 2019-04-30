@@ -27,6 +27,7 @@ import numpy as np
 import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader
+import pandas as pd
 
 import sys
 sys.path.append("..")
@@ -34,17 +35,21 @@ sys.path.append("..")
 from part2.dataset import TextDataset
 from part2.model import TextGenerationModel
 
-################################################################################
 
-def sample_text(model, generation_length, dataset, device, temperature=.5):
+def sample_text(model, generation_length, dataset, device, temperatures=[.5, 1., 2.]):
     with torch.no_grad():
-        text = []
         x = torch.randint(high=dataset.vocab_size, size=(1, 1), device=device)
-        states = None
+        # Add the first random character to the text for each temperature
+        text = {temperature: [x.item()] for temperature in temperatures}
+        temp_data = {temperature: [x, None] for temperature in temperatures}
         for _ in range(generation_length-1):
-            x, states = model.predict(x.view(1,-1), states, temperature)
-            text.append(x.item())
-    return dataset.convert_to_string(text)
+            for temperature in temperatures:
+                x, states = model.predict(
+                    temp_data[temperature][0].view(1, -1), temp_data[temperature][1], temperature)
+                temp_data[temperature] = [x, states]
+                text[temperature].append(x.item())
+    return [[temp, dataset.convert_to_string(text[temp])] for temp in text]
+
 
 def train(config):
 
@@ -67,6 +72,9 @@ def train(config):
     criterion = torch.nn.CrossEntropyLoss()
     optimizer = optim.RMSprop(model.parameters(), lr=config.learning_rate)
 
+    eval_results = []
+    generated_text = []
+
     for step, (batch_inputs, batch_targets) in enumerate(data_loader):
 
         # Only for time measurement of step through network
@@ -78,7 +86,6 @@ def train(config):
         # zero the parameter gradients
         optimizer.zero_grad()
         torch.nn.utils.clip_grad_norm(model.parameters(), max_norm=config.max_norm)
-
         # forward + backward + optimize
         outputs, _ = model(batch_inputs)
         # Reshape the input to be of size `seq_length` x `n_classes`
@@ -100,9 +107,15 @@ def train(config):
                     config.train_steps, config.batch_size, examples_per_second,
                     accuracy.item(), loss.item()
             ))
+            # Add the accuracy and loss values for the current step to the evaluation history
+            eval_results.extend([
+                ['accuracy', step, accuracy.item()],
+                ['loss', step, loss.item()],
+            ])
 
         if step % config.sample_every == 0:
-            print(sample_text(model, config.seq_length, dataset, device))
+            # Append a sentence that is generated
+            generated_text.extend(sample_text(model, config.seq_length, dataset, device))
 
         if step == config.train_steps:
             # If you receive a PyTorch data-loader error, check this bug report:
@@ -110,6 +123,18 @@ def train(config):
             break
 
     print('Done training.')
+
+    out_dir = './out/'
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+
+    # Store the evaluation results
+    eval_df = pd.DataFrame(eval_results, columns=['label', 'step', 'value'])
+    eval_df.to_csv('./out/eval_results.csv')
+
+    # Store the generated text
+    text_df = pd.DataFrame(generated_text, columns=['temperature', 'text'])
+    text_df.to_csv('./out/generated_text.csv')
 
 
  ################################################################################
