@@ -36,16 +36,34 @@ from part2.dataset import TextDataset
 from part2.model import TextGenerationModel
 
 
-def sample_text(model, generation_length, dataset, device, temperatures=[.5, 1., 2.]):
+def sample_text(model, generation_length, pretext, dataset, device, temperatures=[.5, 1., 2.]):
     with torch.no_grad():
-        x = torch.randint(high=dataset.vocab_size, size=(1, 1), device=device)
-        # Add the first random character to the text for each temperature
-        text = {temperature: [x.item()] for temperature in temperatures}
-        temp_data = {temperature: [x, None] for temperature in temperatures}
+        # Convert the `pretext` to integers
+        if pretext:
+            xs = [torch.LongTensor([[dataset._char_to_ix[ch]]], device=device) for ch in pretext]
+        # If no start is specified, start with a random character
+        else:
+            xs = [torch.randint(high=dataset.vocab_size, size=(1, 1), device=device)]
+        # Add the first characters to the text for each temperature
+        text = {temperature: [x.item() for x in xs] for temperature in temperatures}
+        # Add the last character Tensor to the temperature data
+        temp_data = {temperature: [xs[-1], None] for temperature in temperatures}
+        # Forward through the whole start string, and append the last generated char
+        if pretext:
+            for i, x in enumerate(xs):
+                for temperature in temperatures:
+                    # Use the actual character as input, and the previous hidden state
+                    x, states = model.predict(x.view(1, -1), temp_data[temperature][1], temperature)
+                    temp_data[temperature] = [x, states]
+                    # Only append the final generated character to the text
+                    if i == len(xs)-1:
+                        text[temperature].append(x.item())
+        # Generate the rest of the text
         for _ in range(generation_length-1):
             for temperature in temperatures:
                 x, states = model.predict(
-                    temp_data[temperature][0].view(1, -1), temp_data[temperature][1], temperature)
+                    temp_data[temperature][0].view(1, -1), temp_data[temperature][1], temperature
+                )
                 temp_data[temperature] = [x, states]
                 text[temperature].append(x.item())
     return [[temp, dataset.convert_to_string(text[temp])] for temp in text]
@@ -115,7 +133,7 @@ def train(config):
 
         if step % config.sample_every == 0:
             # Append a sentence that is generated
-            generated_text.extend(sample_text(model, config.seq_length, dataset, device))
+            generated_text.extend(sample_text(model, config.gen_length, config.gen_pretext, dataset, device))
 
         if step == config.train_steps:
             # If you receive a PyTorch data-loader error, check this bug report:
@@ -169,6 +187,8 @@ if __name__ == "__main__":
     parser.add_argument('--summary_path', type=str, default="./summaries/", help='Output path for summaries')
     parser.add_argument('--print_every', type=int, default=5, help='How often to print training progress')
     parser.add_argument('--sample_every', type=int, default=100, help='How often to sample from the model')
+    parser.add_argument('--gen_length', type=int, default=30, help='Length of generated text')
+    parser.add_argument('--gen_pretext', type=str, default=None, help='Starting string for the generated text')
 
     config = parser.parse_args()
 
