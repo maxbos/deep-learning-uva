@@ -148,11 +148,11 @@ def train(config):
 
     # Store the evaluation results
     eval_df = pd.DataFrame(eval_results, columns=['label', 'step', 'value'])
-    eval_df.to_csv('./out/eval_results.csv')
+    eval_df.to_csv('./out/eval_results_{}.csv'.format(config.outfile_suffix))
 
     # Store the generated text
     text_df = pd.DataFrame(generated_text, columns=['temperature', 'text'])
-    text_df.to_csv('./out/generated_text.csv')
+    text_df.to_csv('./out/generated_text_{}.csv'.format(config.outfile_suffix))
 
 
  ################################################################################
@@ -189,6 +189,7 @@ if __name__ == "__main__":
     parser.add_argument('--sample_every', type=int, default=100, help='How often to sample from the model')
     parser.add_argument('--gen_length', type=int, default=30, help='Length of generated text')
     parser.add_argument('--gen_pretext', type=str, default=None, help='Starting string for the generated text')
+    parser.add_argument('--outfile_suffix', type=str, default=None, help='String added to the end of an outfilename')
 
     config = parser.parse_args()
 
