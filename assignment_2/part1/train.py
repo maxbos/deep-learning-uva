@@ -18,6 +18,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import os
 import argparse
 import time
 from datetime import datetime
@@ -25,6 +26,7 @@ import numpy as np
 
 import torch
 from torch.utils.data import DataLoader
+import pandas as pd
 
 import sys
 sys.path.append("..")
@@ -60,6 +62,8 @@ def train(config):
     criterion = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.RMSprop(model.parameters(), lr=config.learning_rate)
 
+    accuracies = []
+
     for step, (batch_inputs, batch_targets) in enumerate(data_loader):
 
         # Only for time measurement of step through network
@@ -70,6 +74,7 @@ def train(config):
 
         ############################################################################
         # QUESTION: what happens here and why?
+        # ANSWER: gradient clipping is applied to counteract the exploding gradient
         ############################################################################
         torch.nn.utils.clip_grad_norm(model.parameters(), max_norm=config.max_norm)
         ############################################################################
@@ -94,6 +99,8 @@ def train(config):
                     accuracy, loss
             ))
 
+            accuracies.append(accuracy)
+
             # Stop the training on convergence
             if accuracy == 1.0:
                 break
@@ -105,6 +112,16 @@ def train(config):
 
     print('Done training.')
 
+    out_dir = './out/'
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+
+    acc_df = pd.DataFrame(data={
+        'model type': [config.model_type],
+        'palindrome length': [config.input_length],
+        'accuracy': [np.max(np.array(accuracies))]
+    })
+    acc_df.to_csv('./out/accuracy_model-{}_pl-{}.csv'.format(config.model_type, config.input_length))
 
  ################################################################################
  ################################################################################

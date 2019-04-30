@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=cnn
+#SBATCH --job-name=t30pretext
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=3
 #SBATCH --ntasks-per-node=1
@@ -20,4 +20,4 @@ module load NCCL/2.0.5-CUDA-9.0.176
 export LD_LIBRARY_PATH=/hpc/eb/Debian9/cuDNN/7.1-CUDA-8.0.44-GCCcore-5.4.0/lib64:$LD_LI$
 
 source activate dl
-srun python3 -u train.py --device='cuda:0' --gen_pretext='One night--' --outfile_suffix='pt_onenight--'
+srun python3 -u train.py --txt_file='./assets/sherlock-holmes.txt' --device='cuda:0' --gen_pretext='One night--' --outfile_suffix='pt_onenight--'
