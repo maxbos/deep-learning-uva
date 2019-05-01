@@ -89,56 +89,60 @@ def train(config):
     # Setup the loss and optimizer
     criterion = torch.nn.CrossEntropyLoss()
     optimizer = optim.RMSprop(model.parameters(), lr=config.learning_rate)
+    scheduler = optim.lr_scheduler.StepLR(optimizer, 2)
 
     eval_results = []
     generated_text = []
 
-    for step, (batch_inputs, batch_targets) in enumerate(data_loader):
+    for e in range(10):
+        for step, (batch_inputs, batch_targets) in enumerate(data_loader):
 
-        # Only for time measurement of step through network
-        t1 = time.time()
-        
-        batch_inputs = torch.stack(batch_inputs).to(device)
-        batch_targets = torch.stack(batch_targets).to(device)
+            # Only for time measurement of step through network
+            t1 = time.time()
+            
+            batch_inputs = torch.stack(batch_inputs).to(device)
+            batch_targets = torch.stack(batch_targets).to(device)
 
-        # zero the parameter gradients
-        optimizer.zero_grad()
-        torch.nn.utils.clip_grad_norm(model.parameters(), max_norm=config.max_norm)
-        # forward + backward + optimize
-        outputs, _ = model(batch_inputs)
-        # Reshape the input to be of size `seq_length` x `n_classes`
-        loss = criterion(outputs.transpose(2, 1), batch_targets)
-        # Get the index of the charachter with the maximum value for each timestep
-        # and sample, and compare this to the true targets
-        accuracy = (outputs.argmax(dim=-1) == batch_targets).float().mean()
-        loss.backward()
-        optimizer.step()
+            # zero the parameter gradients
+            optimizer.zero_grad()
+            torch.nn.utils.clip_grad_norm(model.parameters(), max_norm=config.max_norm)
+            # forward + backward + optimize
+            outputs, _ = model(batch_inputs)
+            # Reshape the input to be of size `seq_length` x `n_classes`
+            loss = criterion(outputs.transpose(2, 1), batch_targets)
+            # Get the index of the charachter with the maximum value for each timestep
+            # and sample, and compare this to the true targets
+            accuracy = (outputs.argmax(dim=-1) == batch_targets).float().mean()
+            loss.backward()
+            optimizer.step()
 
-        # Just for time measurement
-        t2 = time.time()
-        examples_per_second = config.batch_size/float(t2-t1)
+            # Just for time measurement
+            t2 = time.time()
+            examples_per_second = config.batch_size/float(t2-t1)
 
-        if step % config.print_every == 0:
-            print("[{}] Train Step {:.0f}/{:.0f}, Batch Size = {}, Examples/Sec = {:.2f}, "
-                  "Accuracy = {:.2f}, Loss = {:.3f}".format(
-                    datetime.now().strftime("%Y-%m-%d %H:%M"), step,
-                    config.train_steps, config.batch_size, examples_per_second,
-                    accuracy.item(), loss.item()
-            ))
-            # Add the accuracy and loss values for the current step to the evaluation history
-            eval_results.extend([
-                ['accuracy', step, accuracy.item()],
-                ['loss', step, loss.item()],
-            ])
+            if step % config.print_every == 0:
+                print("[{}] Train Step {:.0f}/{:.0f}, Batch Size = {}, Examples/Sec = {:.2f}, "
+                    "Accuracy = {:.2f}, Loss = {:.3f}".format(
+                        datetime.now().strftime("%Y-%m-%d %H:%M"), step,
+                        config.train_steps, config.batch_size, examples_per_second,
+                        accuracy.item(), loss.item()
+                ))
+                # Add the accuracy and loss values for the current step to the evaluation history
+                eval_results.extend([
+                    ['accuracy', step, accuracy.item()],
+                    ['loss', step, loss.item()],
+                ])
 
-        if step % config.sample_every == 0:
-            # Append a sentence that is generated
-            generated_text.extend(sample_text(model, config.gen_length, config.gen_pretext, dataset, device))
+            if step % config.sample_every == 0:
+                # Append a sentence that is generated
+                generated_text.extend(sample_text(model, config.gen_length, config.gen_pretext, dataset, device))
 
-        if step == config.train_steps:
-            # If you receive a PyTorch data-loader error, check this bug report:
-            # https://github.com/pytorch/pytorch/pull/9655
-            break
+            if step == config.train_steps:
+                # If you receive a PyTorch data-loader error, check this bug report:
+                # https://github.com/pytorch/pytorch/pull/9655
+                break
+
+        scheduler.step()
 
     print('Done training.')
 
@@ -193,6 +197,7 @@ if __name__ == "__main__":
     parser.add_argument('--gen_length', type=int, default=30, help='Length of generated text')
     parser.add_argument('--gen_pretext', type=str, default=None, help='Starting string for the generated text')
     parser.add_argument('--outfile_suffix', type=str, default=None, help='String added to the end of an outfilename')
+    parser.add_argument('--num_epochs', type=int, default=6, help='Number of epochs')
 
     config = parser.parse_args()
 
