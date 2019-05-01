@@ -25,13 +25,13 @@ class TextGenerationModel(nn.Module):
 
     def __init__(self, batch_size, seq_length, vocabulary_size,
                  lstm_num_hidden=256, lstm_num_layers=2, device='cuda:0',
-                 embedding_dim=30):
+                 embedding_dim=30, dropout=0):
 
         super(TextGenerationModel, self).__init__()
         self.device = device
         self.embeddings = nn.Embedding(vocabulary_size, embedding_dim).to(device)
         self.lstm = nn.LSTM(
-            embedding_dim, lstm_num_hidden, lstm_num_layers,
+            embedding_dim, lstm_num_hidden, lstm_num_layers, dropout=(1-dropout),
         ).to(device)
         self.linear = nn.Linear(lstm_num_hidden, vocabulary_size).to(device)
 
@@ -41,9 +41,13 @@ class TextGenerationModel(nn.Module):
         output = self.linear(output)
         return output, (hn, cn)
 
-    def predict(self, x, states, temperature=1.0):
+    def predict(self, x, states, temperature=0.0):
         """Predict the next character."""
         output, (hn, cn) = self.forward(x, states)
-        distribution = nn.functional.softmax(output.squeeze()/temperature, dim=0)
-        predicted = torch.multinomial(distribution, 1)
+        if temperature == 0:
+            distribution = nn.functional.softmax(output.squeeze(), dim=0)
+            _, predicted = distribution.max(dim=0)
+        else:
+            distribution = nn.functional.softmax(output.squeeze()/temperature, dim=0)
+            predicted = torch.multinomial(distribution, 1)
         return predicted, (hn, cn)
