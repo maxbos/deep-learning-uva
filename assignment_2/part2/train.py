@@ -36,7 +36,7 @@ from part2.dataset import TextDataset
 from part2.model import TextGenerationModel
 
 
-def sample_text(model, generation_length, pretext, dataset, device, temperatures=[.5, 1., 2.]):
+def sample_text(model, generation_length, pretext, dataset, device, temperatures=[0, .5, 1., 2.]):
     with torch.no_grad():
         # Convert the `pretext` to integers
         if pretext:
@@ -89,6 +89,7 @@ def train(config):
     # Setup the loss and optimizer
     criterion = torch.nn.CrossEntropyLoss()
     optimizer = optim.RMSprop(model.parameters(), lr=config.learning_rate)
+    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=config.learning_rate_step, gamma=config.learning_rate_decay)
 
     eval_results = []
     generated_text = []
@@ -112,7 +113,7 @@ def train(config):
         # and sample, and compare this to the true targets
         accuracy = (outputs.argmax(dim=-1) == batch_targets).float().mean()
         loss.backward(retain_graph=True)
-        optimizer.step()
+        scheduler.step()
 
         # Just for time measurement
         t2 = time.time()
@@ -141,6 +142,9 @@ def train(config):
             break
 
     print('Done training.')
+
+    # Sample the text one last time with the final model
+    generated_text.extend(sample_text(model, config.gen_length, config.gen_pretext, dataset, device))
 
     out_dir = './out/'
     if not os.path.exists(out_dir):

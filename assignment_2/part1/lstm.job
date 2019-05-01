@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=t30pretext
+#SBATCH --job-name=t30random
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=3
 #SBATCH --ntasks-per-node=1
@@ -20,4 +20,18 @@ module load NCCL/2.0.5-CUDA-9.0.176
 export LD_LIBRARY_PATH=/hpc/eb/Debian9/cuDNN/7.1-CUDA-8.0.44-GCCcore-5.4.0/lib64:$LD_LI$
 
 source activate dl
-srun python3 -u train.py --txt_file='./assets/sherlock-holmes.txt' --device='cuda:0' --gen_pretext='"You are sure that she has not sent it yet?"' --gen_length=1000 --sample_every=1000 --outfile_suffix='pt_onenight--'
+
+for i in {5..15}
+do
+   srun python3 -u train.py --input_length=$i --model_type='LSTM' --learning_rate=0.001
+done
+
+for i in {15..30}
+do
+   srun python3 -u train.py --input_length=$i --model_type='LSTM' --learning_rate=0.0007
+done
+
+for i in {30..40}
+do
+   srun python3 -u train.py --input_length=$i --model_type='LSTM' --learning_rate=0.0004
+done

@@ -41,7 +41,7 @@ class TextGenerationModel(nn.Module):
         output = self.linear(output)
         return output, (hn, cn)
 
-    def predict(self, x, states, temperature=1.):
+    def predict(self, x, states, temperature=1.0):
         """Predict the next character."""
         output, (hn, cn) = self.forward(x, states)
         distribution = nn.functional.softmax(output.squeeze()/temperature, dim=0)

@@ -63,7 +63,7 @@ def train(config):
     criterion = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.RMSprop(model.parameters(), lr=config.learning_rate)
 
-    # accuracies = []
+    accuracies = []
 
     for step, (batch_inputs, batch_targets) in enumerate(data_loader):
 
@@ -102,11 +102,10 @@ def train(config):
                     accuracy.item(), loss
             ))
 
-            # accuracies.append(accuracy.item())
-            last_accuracy = accuracy.item()
+            accuracies.append(accuracy.item())
 
             # Stop the training on convergence
-            if accuracy == 1.0:
+            if loss < 0.001:
                 break
 
         if step == config.train_steps:
@@ -116,16 +115,8 @@ def train(config):
 
     print('Done training.')
 
-    out_dir = './out/'
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
-
-    acc_df = pd.DataFrame(data={
-        'model type': [config.model_type],
-        'palindrome length': [config.input_length],
-        'accuracy': [last_accuracy]
-    })
-    acc_df.to_csv('./out/accuracy_model-{}_pl-{}.csv'.format(config.model_type, config.input_length))
+    # Calculate the average achieved accuracy over the last 10 batches
+    return np.mean(np.array(accuracies[-10:]))
 
  ################################################################################
  ################################################################################
@@ -146,8 +137,23 @@ if __name__ == "__main__":
     parser.add_argument('--train_steps', type=int, default=10000, help='Number of training steps')
     parser.add_argument('--max_norm', type=float, default=10.0)
     parser.add_argument('--device', type=str, default="cuda:0", help="Training device 'cpu' or 'cuda:0'")
+    parser.add_argument('--num_runs', type=int, default=3, help="Number of training runs")
 
     config = parser.parse_args()
 
     # Train the model
-    train(config)
+    accuracies = []
+    for r in range(config.num_runs):
+        accuracies.append(train(config))
+
+    out_dir = './out/'
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+
+    acc_df = pd.DataFrame(data={
+        'model type': [config.model_type],
+        'palindrome length': [config.input_length],
+        # Average the accuracy over all performed runs
+        'accuracy': [np.mean(np.array(accuracies))]
+    })
+    acc_df.to_csv('./out/accuracy_model-{}_pl-{}.csv'.format(config.model_type, config.input_length))
