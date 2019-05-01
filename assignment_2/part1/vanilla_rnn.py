@@ -45,6 +45,7 @@ class VanillaRNN(nn.Module):
         return nn.Parameter(torch.empty(*params, device=self.device).uniform_(-stdv, stdv))
 
     def forward(self, x):
+        x = x.to(self.device)
         h_prev = self.h_init
         for t in range(self.seq_length):
             # Retrieve a sequence of `input_dim` starting at timestamp `t` for all samples

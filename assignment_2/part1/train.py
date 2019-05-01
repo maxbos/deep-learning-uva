@@ -51,8 +51,9 @@ def train(config):
     model_name = VanillaRNN if config.model_type == 'RNN' else LSTM
     model = model_name(
         config.input_length, config.input_dim, config.num_hidden,
-        config.num_classes, config.batch_size, config.device
+        config.num_classes, config.batch_size, device
     )
+    model.to(device)
 
     # Initialize the dataset and data loader (note the +1)
     dataset = PalindromeDataset(config.input_length+1)
@@ -62,9 +63,11 @@ def train(config):
     criterion = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.RMSprop(model.parameters(), lr=config.learning_rate)
 
-    accuracies = []
+    # accuracies = []
 
     for step, (batch_inputs, batch_targets) in enumerate(data_loader):
+
+        batch_targets = batch_targets.to(device)
 
         # Only for time measurement of step through network
         t1 = time.time()
@@ -96,10 +99,11 @@ def train(config):
                   "Accuracy = {:.2f}, Loss = {:.3f}".format(
                     datetime.now().strftime("%Y-%m-%d %H:%M"), step,
                     config.train_steps, config.batch_size, examples_per_second,
-                    accuracy, loss
+                    accuracy.item(), loss
             ))
 
-            accuracies.append(accuracy)
+            # accuracies.append(accuracy.item())
+            last_accuracy = accuracy.item()
 
             # Stop the training on convergence
             if accuracy == 1.0:
@@ -119,7 +123,7 @@ def train(config):
     acc_df = pd.DataFrame(data={
         'model type': [config.model_type],
         'palindrome length': [config.input_length],
-        'accuracy': [np.max(np.array(accuracies))]
+        'accuracy': [last_accuracy]
     })
     acc_df.to_csv('./out/accuracy_model-{}_pl-{}.csv'.format(config.model_type, config.input_length))
 
