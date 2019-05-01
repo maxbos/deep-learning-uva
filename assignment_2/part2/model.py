@@ -25,13 +25,13 @@ class TextGenerationModel(nn.Module):
 
     def __init__(self, batch_size, seq_length, vocabulary_size,
                  lstm_num_hidden=256, lstm_num_layers=2, device='cuda:0',
-                 embedding_dim=30, dropout=0):
+                 embedding_dim=30):
 
         super(TextGenerationModel, self).__init__()
         self.device = device
         self.embeddings = nn.Embedding(vocabulary_size, embedding_dim).to(device)
         self.lstm = nn.LSTM(
-            embedding_dim, lstm_num_hidden, lstm_num_layers, dropout=(1-dropout),
+            embedding_dim, lstm_num_hidden, lstm_num_layers
         ).to(device)
         self.linear = nn.Linear(lstm_num_hidden, vocabulary_size).to(device)
 
