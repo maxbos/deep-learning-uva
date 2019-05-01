@@ -28,14 +28,15 @@ class TextGenerationModel(nn.Module):
                  embedding_dim=30):
 
         super(TextGenerationModel, self).__init__()
-        self.embeddings = nn.Embedding(vocabulary_size, embedding_dim)
+        self.device = device
+        self.embeddings = nn.Embedding(vocabulary_size, embedding_dim).to(device)
         self.lstm = nn.LSTM(
             embedding_dim, lstm_num_hidden, lstm_num_layers,
-        )
-        self.linear = nn.Linear(lstm_num_hidden, vocabulary_size)
+        ).to(device)
+        self.linear = nn.Linear(lstm_num_hidden, vocabulary_size).to(device)
 
     def forward(self, x, states=None):
-        embeds = self.embeddings(x)
+        embeds = self.embeddings(x.to(self.device))
         output, (hn, cn) = self.lstm(embeds, states)
         output = self.linear(output)
         return output, (hn, cn)

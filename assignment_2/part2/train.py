@@ -40,7 +40,7 @@ def sample_text(model, generation_length, pretext, dataset, device, temperatures
     with torch.no_grad():
         # Convert the `pretext` to integers
         if pretext:
-            xs = [torch.LongTensor([[dataset._char_to_ix[ch]]], device=device) for ch in pretext]
+            xs = [torch.LongTensor([[dataset._char_to_ix[ch]]]) for ch in pretext]
         # If no start is specified, start with a random character
         else:
             xs = [torch.randint(high=dataset.vocab_size, size=(1, 1), device=device)]
