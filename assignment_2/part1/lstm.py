@@ -55,6 +55,7 @@ class LSTM(nn.Module):
         return nn.Parameter(torch.empty(*params, device=self.device).uniform_(-stdv, stdv))
 
     def forward(self, x):
+        x = x.to(self.device)
         c_prev = self.c_init
         h_prev = self.h_init
         for t in range(self.seq_length):
