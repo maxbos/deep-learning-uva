@@ -117,10 +117,10 @@ def train(dataloader, discriminator, generator, optimizer_G, optimizer_D, criter
                     % (epoch, args.n_epochs, i, len(dataloader),
                     loss_D.item(), loss_G.item(), D_x, D_G_z1, D_G_z2))
 
-            eval_results.extend([
-                [i, 'loss_D', loss_D.item()],
-                [i, 'loss_G', loss_G.item()],
-            ])
+                eval_results.extend([
+                    [i, 'loss_D', loss_D.item()],
+                    [i, 'loss_G', loss_G.item()],
+                ])
 
             # Save Images
             # -----------
