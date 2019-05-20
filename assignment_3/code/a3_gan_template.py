@@ -155,7 +155,7 @@ def save_interpolation_samples(steps=7):
         interpolation_step = (noise[0]-noise[1])/(steps+2)
         z = [noise[0]-(interpolation_step*i) for i in range(steps+2)]
         z = torch.stack(z).to(device)
-        fake_imgs = generator(noise)
+        fake_imgs = generator(z)
         save_image(fake_imgs.view(-1, 1, 28, 28),
                 './results_gan/interpolation.png',
                 nrow=1, normalize=True)

@@ -202,6 +202,6 @@ if __name__ == "__main__":
     ARGS = parser.parse_args()
     device = torch.device(ARGS.device)
 
-    os.makedirs('/results_vae', exists_ok=True)
+    os.makedirs('/results_vae', exist_ok=True)
 
     main()
