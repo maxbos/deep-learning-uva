@@ -1,10 +1,12 @@
+import os
 import argparse
 
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
 import matplotlib.pyplot as plt
-from torchvision.utils import make_grid
+from torchvision.utils import make_grid, save_image
+import numpy as np
 
 from datasets.bmnist import bmnist
 
@@ -83,8 +85,8 @@ class VAE(nn.Module):
         used to plot the data manifold).
         """
         z = torch.randn((n_samples, self.z_dim))
-        sampled_ims = self.decoder(z)
-        im_means = sampled_ims.mean(dim=0)
+        im_means = self.decoder(z)
+        sampled_ims = torch.bernoulli(im_means)
         return sampled_ims, im_means
 
 
@@ -119,7 +121,8 @@ def run_epoch(model, data, optimizer):
     train_elbo = epoch_iter(model, traindata, optimizer)
 
     model.eval()
-    val_elbo = epoch_iter(model, valdata, optimizer)
+    with torch.no_grad():
+        val_elbo = epoch_iter(model, valdata, optimizer)
 
     return train_elbo, val_elbo
 
@@ -133,6 +136,27 @@ def save_elbo_plot(train_curve, val_curve, filename):
     plt.ylabel('ELBO')
     plt.tight_layout()
     plt.savefig(filename)
+
+
+def save_samples_plot(model, epoch, n_samples=25):
+    with torch.no_grad():
+        sampled_ims, _ = model.sample(n_samples)
+        images = sampled_ims.view(n_samples, 1, 28, 28)
+        save_image(images.cpu(),
+                'results_vae/samples_{}.png'.format(str(epoch)),
+                nrow=5, normalize=True)
+
+
+def save_manifold_plot(model):
+    with torch.no_grad():
+        steps = 20
+        density_point = torch.linspace(0, 1, steps)
+        # Basically use adaptation of torch.distributions.icdf here for manifold z's
+        z_tensors = [torch.erfinv(2 * torch.tensor([x, y]) - 1) * np.sqrt(2) for x in density_point for y in density_point]
+        z = torch.stack(z_tensors).to(device)
+        im_means = model.decoder(z).view(-1, 1, 28, 28)
+        image = make_grid(im_means, nrow=steps)
+        save_image(image.cpu(), 'results_vae/manifold.png')
 
 
 def main():
@@ -153,12 +177,15 @@ def main():
         #  Add functionality to plot samples from model during training.
         #  You can use the make_grid functioanlity that is already imported.
         # --------------------------------------------------------------------
+        save_samples_plot(model, epoch)
 
     # --------------------------------------------------------------------
     #  Add functionality to plot plot the learned data manifold after
     #  if required (i.e., if zdim == 2). You can use the make_grid
     #  functionality that is already imported.
     # --------------------------------------------------------------------
+    if ARGS.zdim == 2:
+        save_manifold_plot(model)
 
     save_elbo_plot(train_curve, val_curve, 'elbo.pdf')
 
@@ -174,5 +201,7 @@ if __name__ == "__main__":
 
     ARGS = parser.parse_args()
     device = torch.device(ARGS.device)
+
+    os.makedirs('/results_vae', exists_ok=True)
 
     main()

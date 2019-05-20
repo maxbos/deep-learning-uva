@@ -131,23 +131,39 @@ def train(dataloader, discriminator, generator, optimizer_G, optimizer_D, criter
                 # filename, number of rows, normalize) to save the generated
                 # images, e.g.:
                 save_image(gen_imgs[:25],
-                           'images/{}.png'.format(batches_done),
+                           'results_gan/{}.png'.format(batches_done),
                            nrow=5, normalize=True)
 
     print('Done training')
 
-    out_dir = './out/'
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
+    os.makedirs('./out_gan', exist_ok=True)
 
     # Store the evaluation results
     eval_df = pd.DataFrame(eval_results, columns=['label', 'step', 'value'])
-    eval_df.to_csv('./out/eval_results.csv')
+    eval_df.to_csv('./out_gan/eval_results.csv')
+
+
+def save_interpolation_samples(steps=7):
+    # Initialize the device that will be used
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    generator = Generator().to(device)
+    state_dict = torch.load("mnist_generator.pt")
+    generator.load_state_dict(state_dict)
+    generator.eval()
+    with torch.no_grad():
+        noise = torch.randn(2, args.latent_dim, device=device)
+        interpolation_step = (noise[0]-noise[1])/(steps+2)
+        z = [noise[0]-(interpolation_step*i) for i in range(steps+2)]
+        z = torch.stack(z).to(device)
+        fake_imgs = generator(noise)
+        save_image(fake_imgs.view(-1, 1, 28, 28),
+                './results_gan/interpolation.png',
+                nrow=1, normalize=True)
 
 
 def main():
     # Create output image directory
-    os.makedirs('images', exist_ok=True)
+    os.makedirs('./results_gan', exist_ok=True)
 
     # load data
     dataloader = torch.utils.data.DataLoader(
@@ -190,6 +206,13 @@ if __name__ == "__main__":
                         help='dimensionality of the latent space')
     parser.add_argument('--save_interval', type=int, default=500,
                         help='save every SAVE_INTERVAL iterations')
+    parser.add_argument('--interpolate', type=bool, default=False,
+                        help='do not train, and perform interpolation assignment')
     args = parser.parse_args()
 
-    main()
+    if args.interpolate:
+        # Sample 2 images of different classes, and plot 7 interpolation steps
+        save_interpolation_samples()
+
+    if not args.interpolate:
+        main()
