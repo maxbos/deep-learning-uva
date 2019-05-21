@@ -158,7 +158,7 @@ def save_interpolation_samples(steps=7):
         fake_imgs = generator(z)
         save_image(fake_imgs.view(-1, 1, 28, 28),
                 './results_gan/interpolation.png',
-                nrow=1, normalize=True)
+                nrow=9, normalize=True)
 
 
 def main():
