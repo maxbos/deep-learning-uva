@@ -62,7 +62,7 @@ class VAE(nn.Module):
         Given input, perform an encoding and decoding step and return the
         negative average elbo for the given batch.
         """
-        mean, logvar = self.encoder(input.view(-1, 784))
+        mean, logvar = self.encoder(input.view(-1, 784).to(device))
         z = self.reparameterize(mean, logvar)
         input_recon = self.decoder(z)
         average_negative_elbo = self.elbo_loss_function(input, input_recon, mean, logvar)
@@ -70,11 +70,11 @@ class VAE(nn.Module):
 
     def reparameterize(self, mean, logvar):
         std = torch.exp(0.5*logvar)
-        eps = torch.randn_like(std)
+        eps = torch.randn_like(std, device=device)
         return mean + std*eps
 
     def elbo_loss_function(self, input, input_recon, mean, logvar):
-        BCE = F.binary_cross_entropy(input_recon, input.view(-1, 784), reduction='sum')
+        BCE = F.binary_cross_entropy(input_recon, input.view(-1, 784).to(device), reduction='sum')
         KLD = -0.5 * torch.sum(1 + logvar - mean.pow(2) - logvar.exp())
         return (BCE + KLD) / len(input_recon)
 
@@ -84,7 +84,7 @@ class VAE(nn.Module):
         (from bernoulli) and the means for these bernoullis (as these are
         used to plot the data manifold).
         """
-        z = torch.randn((n_samples, self.z_dim))
+        z = torch.randn((n_samples, self.z_dim), device=device)
         im_means = self.decoder(z)
         sampled_ims = torch.bernoulli(im_means)
         return sampled_ims, im_means

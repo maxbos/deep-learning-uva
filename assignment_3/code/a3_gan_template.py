@@ -24,7 +24,7 @@ class Generator(nn.Module):
         self.linear5 = nn.Linear(1024, 784)
 
     def forward(self, z):
-        x = F.leaky_relu(self.linear1(z), .2)
+        x = F.leaky_relu(self.linear1(z.to(device)), .2)
         x = F.leaky_relu(self.bnorm1(self.linear2(x)), .2)
         x = F.leaky_relu(self.bnorm2(self.linear3(x)), .2)
         x = F.leaky_relu(self.bnorm3(self.linear4(x)), .2)
@@ -39,7 +39,7 @@ class Discriminator(nn.Module):
         self.linear3 = nn.Linear(256, 1)
 
     def forward(self, img):
-        x = F.leaky_relu(self.linear1(img), .2)
+        x = F.leaky_relu(self.linear1(img.to(device)), .2)
         x = F.leaky_relu(self.linear2(x), .2)
         return torch.sigmoid(self.linear3(x))
 
@@ -130,7 +130,7 @@ def train(dataloader, discriminator, generator, optimizer_G, optimizer_D, criter
                 # You can use the function save_image(Tensor (shape Bx1x28x28),
                 # filename, number of rows, normalize) to save the generated
                 # images, e.g.:
-                save_image(gen_imgs[:25],
+                save_image(gen_imgs[:25].cpu(),
                            'results_gan/{}.png'.format(batches_done),
                            nrow=5, normalize=True)
 
@@ -144,8 +144,6 @@ def train(dataloader, discriminator, generator, optimizer_G, optimizer_D, criter
 
 
 def save_interpolation_samples(steps=7):
-    # Initialize the device that will be used
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     generator = Generator().to(device)
     state_dict = torch.load("mnist_generator.pt")
     generator.load_state_dict(state_dict)
@@ -156,7 +154,7 @@ def save_interpolation_samples(steps=7):
         z = [noise[0]-(interpolation_step*i) for i in range(steps+2)]
         z = torch.stack(z).to(device)
         fake_imgs = generator(z)
-        save_image(fake_imgs.view(-1, 1, 28, 28),
+        save_image(fake_imgs.view(-1, 1, 28, 28).cpu(),
                 './results_gan/interpolation.png',
                 nrow=9, normalize=True)
 
@@ -173,9 +171,6 @@ def main():
                            transforms.Normalize((0.5,),
                                                 (0.5,))])),
         batch_size=args.batch_size, shuffle=True)
-
-    # Initialize the device that will be used
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
     # Initialize BCELoss function
     criterion = nn.BCELoss()
@@ -209,6 +204,9 @@ if __name__ == "__main__":
     parser.add_argument('--interpolate', type=bool, default=False,
                         help='do not train, and perform interpolation assignment')
     args = parser.parse_args()
+
+    # Initialize the device that will be used
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
     if args.interpolate:
         # Sample 2 images of different classes, and plot 7 interpolation steps
