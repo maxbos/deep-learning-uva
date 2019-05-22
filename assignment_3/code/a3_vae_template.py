@@ -76,7 +76,7 @@ class VAE(nn.Module):
     def elbo_loss_function(self, input, input_recon, mean, logvar):
         BCE = F.binary_cross_entropy(input_recon, input.view(-1, 784), reduction='sum')
         KLD = -0.5 * torch.sum(1 + logvar - mean.pow(2) - logvar.exp())
-        return BCE + KLD
+        return (BCE + KLD) / len(input_recon)
 
     def sample(self, n_samples):
         """
@@ -187,7 +187,7 @@ def main():
     if ARGS.zdim == 2:
         save_manifold_plot(model)
 
-    save_elbo_plot(train_curve, val_curve, 'elbo.pdf')
+    save_elbo_plot(train_curve, val_curve, './results_vae/elbo.pdf')
 
 
 if __name__ == "__main__":
@@ -202,6 +202,6 @@ if __name__ == "__main__":
     ARGS = parser.parse_args()
     device = torch.device(ARGS.device)
 
-    os.makedirs('/results_vae', exist_ok=True)
+    os.makedirs('./results_vae', exist_ok=True)
 
     main()
