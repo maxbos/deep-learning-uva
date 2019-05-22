@@ -9,13 +9,18 @@ from datasets.mnist import mnist
 import os
 from torchvision.utils import make_grid
 
+import math
+
 
 def log_prior(x):
     """
     Compute the elementwise log probability of a standard Gaussian, i.e.
     N(x | mu=0, sigma=1).
+
+    Inspired by https://github.com/casperkaae/parmesan/blob/master/parmesan/distributions.py
     """
-    raise NotImplementedError
+    c = -0.5 * torch.log(torch.tensor(2*math.pi, device=device))
+    logp = torch.sum(c - x.pow(2) / 2, dim=1)
     return logp
 
 
@@ -23,11 +28,7 @@ def sample_prior(size):
     """
     Sample from a standard Gaussian.
     """
-    raise NotImplementedError
-
-    if torch.cuda.is_available():
-        sample = sample.cuda()
-
+    sample = torch.randn_like(size, device=device)
     return sample
 
 
@@ -56,8 +57,12 @@ class Coupling(torch.nn.Module):
         # scale variables.
         # Suggestion: Linear ReLU Linear ReLU Linear.
         self.nn = torch.nn.Sequential(
-            None
-            )
+            nn.Linear(c_in, n_hidden),
+            nn.ReLU(),
+            nn.Linear(n_hidden, n_hidden),
+            nn.ReLU(),
+            nn.Linear(n_hidden, n_hidden),
+        )
 
         # The nn should be initialized such that the weights of the last layer
         # is zero, so that its initial transform is identity.
@@ -114,7 +119,7 @@ class Model(nn.Module):
         self.flow = Flow(shape)
 
     def dequantize(self, z):
-        return z + torch.rand_like(z)
+        return z + torch.rand_like(z, device=device)
 
     def logit_normalize(self, z, logdet, reverse=False):
         """
@@ -147,7 +152,7 @@ class Model(nn.Module):
         """
         Given input, encode the input to z space. Also keep track of ldj.
         """
-        z = input
+        z = input.to(device)
         ldj = torch.zeros(z.size(0), device=z.device)
 
         z = self.dequantize(z)
@@ -156,8 +161,8 @@ class Model(nn.Module):
         z, ldj = self.flow(z, ldj)
 
         # Compute log_pz and log_px per example
-
-        raise NotImplementedError
+        log_pz = log_prior(z)
+        log_px = log_pz + ldj
 
         return log_px
 
@@ -168,9 +173,8 @@ class Model(nn.Module):
         """
         z = sample_prior((n_samples,) + self.flow.z_shape)
         ldj = torch.zeros(z.size(0), device=z.device)
-
-        raise NotImplementedError
-
+        z, ldj = self.flow(z, ldj, reverse=True)
+        z, _ = self.logit_normalize(z, ldj, reverse=True)
         return z
 
 
@@ -182,10 +186,20 @@ def epoch_iter(model, data, optimizer):
     Returns the average bpd ("bits per dimension" which is the negative
     log_2 likelihood per dimension) averaged over the complete epoch.
     """
+    bpd_loss = 0
+    data_length = len(data)
+    for _, batch in enumerate(data):
+        batch.to(device)
+        if model.training:
+            optimizer.zero_grad()
+        log_px = model(batch)
+        bpd = -log_px.mean()
+        if model.training:
+            bpd.backward()
+            optimizer.step()
+        bpd_loss += bpd.item()
 
-    avg_bpd = None
-
-    return avg_bpd
+    return bpd_loss / data_length
 
 
 def run_epoch(model, data, optimizer):
@@ -201,6 +215,10 @@ def run_epoch(model, data, optimizer):
     val_bpd = epoch_iter(model, valdata, optimizer)
 
     return train_bpd, val_bpd
+
+
+def save_samples_plot(model, epoch):
+    """"""
 
 
 def save_bpd_plot(train_curve, val_curve, filename):
@@ -224,7 +242,7 @@ def main():
 
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 
-    os.makedirs('images_nfs', exist_ok=True)
+    os.makedirs('./images_nfs', exist_ok=True)
 
     train_curve, val_curve = [], []
     for epoch in range(ARGS.epochs):
@@ -240,8 +258,9 @@ def main():
         #  You can use the make_grid functionality that is already imported.
         #  Save grid to images_nfs/
         # --------------------------------------------------------------------
+        save_samples_plot(model, epoch)
 
-    save_bpd_plot(train_curve, val_curve, 'nfs_bpd.pdf')
+    save_bpd_plot(train_curve, val_curve, './nfs_bpd.pdf')
 
 
 if __name__ == "__main__":
@@ -250,5 +269,8 @@ if __name__ == "__main__":
                         help='max number of epochs')
 
     ARGS = parser.parse_args()
+
+    # Initialize the device that will be used
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
     main()
