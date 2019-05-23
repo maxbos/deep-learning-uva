@@ -61,7 +61,7 @@ class Coupling(torch.nn.Module):
             nn.ReLU(),
             nn.Linear(n_hidden, n_hidden),
             nn.ReLU(),
-            nn.Linear(n_hidden, n_hidden),
+            nn.Linear(n_hidden, c_in*2),
         )
 
         # The nn should be initialized such that the weights of the last layer
@@ -79,10 +79,19 @@ class Coupling(torch.nn.Module):
         # log_scale = tanh(h), where h is the scale-output
         # from the NN.
 
+        z_mask = z * self.mask
+        st = self.nn(z_mask)
+        s, t = st.chunk(2, dim=1)
+        s = torch.tanh(s)
+        s = s * (1 - self.mask)
+        t = t * (1 - self.mask)
+
         if not reverse:
-            raise NotImplementedError
+            z = (z + t) * s.exp()
+            ldj += s.view(s.size(0), -1).sum(-1)
         else:
-            raise NotImplementedError
+            inv_exp_s = s.mul(-1).exp()
+            z = z * inv_exp_s - t
 
         return z, ldj
 
@@ -188,7 +197,7 @@ def epoch_iter(model, data, optimizer):
     """
     bpd_loss = 0
     data_length = len(data)
-    for _, batch in enumerate(data):
+    for _, (batch, _) in enumerate(data):
         batch.to(device)
         if model.training:
             optimizer.zero_grad()
@@ -196,10 +205,11 @@ def epoch_iter(model, data, optimizer):
         bpd = -log_px.mean()
         if model.training:
             bpd.backward()
+            nn.utils.clip_grad_norm_(model.parameters(), 5.0)
             optimizer.step()
         bpd_loss += bpd.item()
 
-    return bpd_loss / data_length
+    return bpd_loss / (data_length * batch.shape[1] * np.log(2))
 
 
 def run_epoch(model, data, optimizer):
