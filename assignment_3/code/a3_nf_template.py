@@ -90,8 +90,7 @@ class Coupling(torch.nn.Module):
             z = (z + t) * s.exp()
             ldj += s.view(s.size(0), -1).sum(-1)
         else:
-            inv_exp_s = s.mul(-1).exp()
-            z = z * inv_exp_s - t
+            z = z * s.mul(-1).exp() - t
 
         return z, ldj
 
